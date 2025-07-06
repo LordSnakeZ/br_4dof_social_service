@@ -1,12 +1,24 @@
-
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
-import { Label } from '@/components/ui/label';
-import { Activity, Zap, Thermometer, Target, Gauge, Battery } from 'lucide-react';
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import {
+  Activity,
+  Zap,
+  Thermometer,
+  Target,
+  Gauge,
+  Battery,
+  AlertCircle,
+} from "lucide-react";
 
 interface ServoData {
   id: number;
@@ -25,166 +37,218 @@ interface ServoData {
 
 interface Props {
   servoData: ServoData;
-  onTorqueEnableChange: (servoId: number, enabled: boolean) => void;
-  onTorqueLimitChange: (servoId: number, limit: number) => void;
+  onTorqueEnableChange: (id: number, enabled: boolean) => void;
+  onTorqueLimitChange: (id: number, limit: number) => void;
 }
 
-export const ServoMonitor = ({ servoData, onTorqueEnableChange, onTorqueLimitChange }: Props) => {
-  const getHealthStatus = () => {
-    if (servoData.presentTemperature > 70) return { color: 'destructive', text: 'HOT' };
-    if (servoData.presentVoltage < 10) return { color: 'destructive', text: 'LOW VOLTAGE' };
-    if (servoData.presentLoad > 80) return { color: 'secondary', text: 'HIGH LOAD' };
-    return { color: 'default', text: 'HEALTHY' };
-  };
+export const ServoMonitor = ({
+  servoData,
+  onTorqueEnableChange,
+  onTorqueLimitChange,
+}: Props) => {
+  /* status helpers */
+  const healthStatus = (() => {
+    if (servoData.presentTemperature > 70)
+      return { color: "destructive", text: "CALIENTE" };
+    if (servoData.presentVoltage < 10)
+      return { color: "destructive", text: "VOLTAJE BAJO" };
+    if (servoData.presentLoad > 80)
+      return { color: "secondary", text: "CARGA ALTA" };
+    return { color: "default", text: "BUEN ESTADO" };
+  })();
 
-  const healthStatus = getHealthStatus();
-  const positionError = Math.abs(servoData.presentPosition - servoData.goalPosition);
+  const positionError = Math.abs(
+    servoData.presentPosition - servoData.goalPosition,
+  );
 
   return (
-    <Card className="bg-white/5 backdrop-blur-xl border-white/10 hover:bg-white/8 transition-all duration-300">
+    <Card className="border border-border/20 bg-card/100 backdrop-blur-sm transition-all hover:bg-card/30">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-3 text-cyan-400">
-            <div className={`w-3 h-3 rounded-full ${
-              servoData.ledState ? 'bg-green-400 animate-pulse shadow-green-400/50' : 'bg-gray-600'
-            } shadow-lg`} />
-            <span>Servo {servoData.id} - {servoData.name}</span>
+            <span
+              className={`h-3 w-3 rounded-full shadow-lg ${
+                servoData.ledState
+                  ? "bg-green-400 animate-pulse shadow-green-400/40"
+                  : "bg-muted"
+              }`}
+            />
+            Servo {servoData.id} – {servoData.name}
           </CardTitle>
-          <Badge variant={healthStatus.color as any} className="text-xs font-semibold">
+          <Badge variant={healthStatus.color as any} className="text-xs">
             {healthStatus.text}
           </Badge>
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
-        {/* Where is it and is it done moving? */}
-        <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-purple-400 flex items-center gap-2">
-            <Target className="w-4 h-4" />
-            Position & Movement
+        {/* ── POSITION ─────────────────────────────── */}
+        <section className="space-y-4">
+          <h4 className="flex items-center gap-2 text-sm font-semibold text-purple-500">
+            <Target className="h-4 w-4" />
+            Posición y Movimiento
           </h4>
-          
+
           <div className="grid grid-cols-2 gap-4">
+            {/* Present */}
             <div className="space-y-2">
-              <Label className="text-xs text-slate-400">Present Position</Label>
-              <div className="text-2xl font-bold text-white font-mono">
+              <Label className="text-xs text-muted-foreground">
+                Posición&nbsp;Actual
+              </Label>
+              <div className="font-mono text-2xl font-bold text-foreground">
                 {servoData.presentPosition}°
               </div>
-              <Progress value={Math.abs(servoData.presentPosition) / 360 * 100} className="h-2 bg-white/10" />
+              <Progress
+                value={(Math.abs(servoData.presentPosition) / 360) * 100}
+                className="h-2 bg-border/30"
+              />
             </div>
-            
+
+            {/* Goal */}
             <div className="space-y-2">
-              <Label className="text-xs text-slate-400">Goal Position</Label>
-              <div className="text-2xl font-bold text-slate-300 font-mono">
+              <Label className="text-xs text-muted-foreground">
+                Posición&nbsp;Final
+              </Label>
+              <div className="font-mono text-2xl font-bold text-secondary-foreground">
                 {servoData.goalPosition}°
               </div>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-muted-foreground">
                 Error: {positionError.toFixed(1)}°
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-            <span className="text-sm text-slate-300">Moving Status</span>
-            <Badge variant={servoData.moving ? "secondary" : "default"} className="text-xs">
-              {servoData.moving ? "MOVING" : "STOPPED"}
+
+          <div className="flex items-center justify-between rounded-lg bg-card/30 p-3">
+            <span className="text-sm text-secondary-foreground">
+              Estado de&nbsp;Movimiento
+            </span>
+            <Badge
+              variant={servoData.moving ? "secondary" : "default"}
+              className="text-xs"
+            >
+              {servoData.moving ? "MOVIENDOSE" : "DETENIDO"}
             </Badge>
           </div>
-        </div>
+        </section>
 
-        {/* How hard is it working? */}
-        <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-orange-400 flex items-center gap-2">
-            <Gauge className="w-4 h-4" />
-            Performance
+        {/* ── PERFORMANCE ──────────────────────────── */}
+        <section className="space-y-4">
+          <h4 className="flex items-center gap-2 text-sm font-semibold text-orange-500">
+            <Gauge className="h-4 w-4" />
+            Rendimiento
           </h4>
-          
+
           <div className="grid grid-cols-2 gap-4">
+            {/* Speed */}
             <div className="space-y-2">
-              <Label className="text-xs text-slate-400">Present Speed</Label>
-              <div className="text-xl font-bold text-white font-mono">
-                {servoData.presentSpeed > 0 ? '+' : ''}{servoData.presentSpeed} RPM
+              <Label className="text-xs text-muted-foreground">
+                Velocidad Angular&nbsp;Actual
+              </Label>
+              <div className="font-mono text-xl font-bold text-foreground">
+                {servoData.presentSpeed > 0 ? "+" : ""}
+                {servoData.presentSpeed} RPM
               </div>
-              <div className="text-xs text-slate-500">
-                {servoData.presentSpeed > 0 ? 'CW' : servoData.presentSpeed < 0 ? 'CCW' : 'Stopped'}
+              <div className="text-xs text-muted-foreground">
+                {servoData.presentSpeed > 0
+                  ? "CW"
+                  : servoData.presentSpeed < 0
+                  ? "CCW"
+                  : "Detenido"}
               </div>
             </div>
-            
+
+            {/* Load */}
             <div className="space-y-2">
-              <Label className="text-xs text-slate-400">Present Load</Label>
-              <div className="text-xl font-bold text-white font-mono">
+              <Label className="text-xs text-muted-foreground">
+                Carga&nbsp;Actual
+              </Label>
+              <div className="font-mono text-xl font-bold text-foreground">
                 {servoData.presentLoad}%
               </div>
-              <Progress 
-                value={Math.abs(servoData.presentLoad)} 
-                className="h-2 bg-white/10"
+              <Progress
+                value={servoData.presentLoad}
+                className="h-2 bg-border/30"
               />
             </div>
           </div>
-          
+
+          {/* Torque */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm text-slate-300">Torque Enable</Label>
+              <Label className="text-sm text-secondary-foreground">
+                Habilitar&nbsp;Torque
+              </Label>
               <Switch
                 checked={servoData.torqueEnable}
-                onCheckedChange={(checked) => onTorqueEnableChange(servoData.id, checked)}
+                onCheckedChange={(v) =>
+                  onTorqueEnableChange(servoData.id, v)
+                }
               />
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm text-slate-300">Torque Limit</Label>
-                <span className="text-sm font-mono text-white">{servoData.torqueLimit}%</span>
+                <Label className="text-sm text-secondary-foreground">
+                  Límite de&nbsp;Torque
+                </Label>
+                <span className="font-mono text-sm text-foreground">
+                  {servoData.torqueLimit}%
+                </span>
               </div>
               <Slider
                 value={[servoData.torqueLimit]}
-                onValueChange={([value]) => onTorqueLimitChange(servoData.id, value)}
+                onValueChange={([v]) =>
+                  onTorqueLimitChange(servoData.id, v)
+                }
                 max={100}
                 step={1}
-                className="w-full"
                 disabled={!servoData.torqueEnable}
               />
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Is it healthy? */}
-        <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-green-400 flex items-center gap-2">
-            <Activity className="w-4 h-4" />
-            Health
+        {/* ── HEALTH ──────────────────────────────── */}
+        <section className="space-y-4">
+          <h4 className="flex items-center gap-2 text-sm font-semibold text-green-500">
+            <Activity className="h-4 w-4" />
+            Salud
           </h4>
-          
+
           <div className="grid grid-cols-2 gap-4">
+            {/* Voltage */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Battery className="w-4 h-4 text-blue-400" />
-                <Label className="text-xs text-slate-400">Voltage</Label>
+                <Battery className="h-4 w-4 text-blue-500" />
+                <Label className="text-xs text-muted-foreground">Voltaje</Label>
               </div>
-              <div className="text-xl font-bold text-white font-mono">
+              <div className="font-mono text-xl font-bold text-foreground">
                 {servoData.presentVoltage.toFixed(1)}V
               </div>
-              <Progress 
-                value={servoData.presentVoltage / 12 * 100} 
-                className="h-2 bg-white/10"
+              <Progress
+                value={(servoData.presentVoltage / 12) * 100}
+                className="h-2 bg-border/30"
               />
             </div>
-            
+
+            {/* Temperature */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Thermometer className="w-4 h-4 text-red-400" />
-                <Label className="text-xs text-slate-400">Temperature</Label>
+                <Thermometer className="h-4 w-4 text-red-500" />
+                <Label className="text-xs text-muted-foreground">
+                  Temperatura
+                </Label>
               </div>
-              <div className="text-xl font-bold text-white font-mono">
+              <div className="font-mono text-xl font-bold text-foreground">
                 {servoData.presentTemperature}°C
               </div>
-              <Progress 
-                value={servoData.presentTemperature / 100 * 100} 
-                className="h-2 bg-white/10"
+              <Progress
+                value={(servoData.presentTemperature / 100) * 100}
+                className="h-2 bg-border/30"
               />
             </div>
           </div>
-        </div>
+        </section>
       </CardContent>
     </Card>
   );

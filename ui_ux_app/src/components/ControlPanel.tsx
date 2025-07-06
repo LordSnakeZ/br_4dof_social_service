@@ -1,13 +1,12 @@
-
-import React from 'react';
-import { Slider } from '@/components/ui/slider';
-import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
+import React from "react";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
 
 interface ArmPosition {
   base: number;
-  shoulder: number;
-  elbow: number;
+  hombro: number;
+  codo: number;
   gripper: number;
 }
 
@@ -18,59 +17,83 @@ interface Props {
 }
 
 const jointConfigs = [
-  { key: 'base', label: 'Base Rotation', min: -180, max: 180, icon: '🔄', color: 'from-blue-500 to-cyan-500' },
-  { key: 'shoulder', label: 'Shoulder', min: -90, max: 90, icon: '💪', color: 'from-purple-500 to-pink-500' },
-  { key: 'elbow', label: 'Elbow', min: -135, max: 135, icon: '🦾', color: 'from-green-500 to-emerald-500' },
-  { key: 'gripper', label: 'Gripper', min: -180, max: 180, icon: '🤏', color: 'from-orange-500 to-red-500' },
+  { key: "base", label: "Base", min: -180, max: 180, icon: "🔄", color: "from-blue-400 to-cyan-700" },
+  { key: "codo", label: "Hombro", min: -90, max: 90, icon: "💪", color: "from-purple-500 to-pink-500" },
+  { key: "hombro", label: "Codo", min: -135, max: 135, icon: "🦾", color: "from-green-500 to-emerald-700" },
+  { key: "gripper", label: "Gripper", min: -180, max: 180, icon: "🤏", color: "from-red-700 to-orange-500" },
 ];
 
-export const ControlPanel = ({ position, onPositionChange, disabled }: Props) => {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {jointConfigs.map((joint) => (
-        <Card key={joint.key} className="p-6 bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 transition-all duration-300 group">
-          <div className="space-y-5">
-            <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-3 text-slate-200 group-hover:text-white transition-colors">
-                <div className={`text-2xl p-2 rounded-lg bg-gradient-to-br ${joint.color} shadow-lg`}>
-                  {joint.icon}
+export const ControlPanel = ({ position, onPositionChange, disabled }: Props) => (
+  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    {jointConfigs.map((joint) => (
+      <Card
+        key={joint.key}
+        className="
+          p-6
+          bg-card/100 hover:bg-card/30
+          border border-border/20
+          backdrop-blur-sm
+          transition-all duration-300 group
+        "
+      >
+        <div className="space-y-5">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-3 text-secondary-foreground group-hover:text-foreground transition-colors">
+              <span className={`text-2xl p-2 rounded-lg bg-gradient-to-br ${joint.color} shadow-lg`}>
+                {joint.icon}
+              </span>
+              <span>
+                <div className="text-lg font-semibold">{joint.label}</div>
+                <div className="text-xs text-muted-foreground">
+                  GDL {jointConfigs.indexOf(joint) + 1}
                 </div>
-                <div>
-                  <div className="font-semibold text-lg">{joint.label}</div>
-                  <div className="text-xs text-slate-400">DOF {jointConfigs.indexOf(joint) + 1}</div>
+              </span>
+            </Label>
+
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <div className="font-mono text-xl font-bold text-foreground">
+                  {position[joint.key as keyof ArmPosition]}°
                 </div>
-              </Label>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-xl font-bold text-white font-mono">
-                    {position[joint.key as keyof ArmPosition]}°
-                  </div>
-                  <div className="text-xs text-slate-400">Current</div>
-                </div>
-                <div className={`w-3 h-3 rounded-full ${
-                  disabled ? 'bg-red-500 shadow-red-500/50' : 'bg-green-400 shadow-green-400/50'
-                } shadow-lg ${disabled ? '' : 'animate-pulse'}`} />
+                <div className="text-xs text-muted-foreground">Actual</div>
               </div>
-            </div>
-            
-            <div className="space-y-3">
-              <Slider
-                value={[position[joint.key as keyof ArmPosition]]}
-                onValueChange={([value]) => onPositionChange(joint.key, value)}
-                min={joint.min}
-                max={joint.max}
-                step={1}
-                disabled={disabled}
-                className="w-full [&_[role=slider]]:bg-white [&_[role=slider]]:border-2 [&_[role=slider]]:border-white/20 [&_[role=slider]]:shadow-lg"
+              <span
+                className={`
+                  h-3 w-3 rounded-full shadow-lg
+                  ${disabled
+                    ? "bg-red-500 shadow-red-500/50"
+                    : "bg-green-400 shadow-green-400/50 animate-pulse"}
+                `}
               />
-              <div className="flex justify-between text-xs text-slate-500">
-                <span className="px-2 py-1 bg-white/5 rounded">{joint.min}°</span>
-                <span className="px-2 py-1 bg-white/5 rounded">{joint.max}°</span>
-              </div>
             </div>
           </div>
-        </Card>
-      ))}
-    </div>
-  );
-};
+
+          {/* Slider */}
+          <div className="space-y-3">
+            <Slider
+              value={[position[joint.key as keyof ArmPosition]]}
+              onValueChange={([value]) => onPositionChange(joint.key, value)}
+              min={joint.min}
+              max={joint.max}
+              step={1}
+              disabled={disabled}
+              /* knob & track inherit tokens */
+              className="
+                w-full
+                [&_[role=slider]]:bg-foreground
+                [&_[role=slider]]:border-2
+                [&_[role=slider]]:border-border/40
+                [&_[role=slider]]:shadow-lg
+              "
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span className="rounded bg-card/30 px-2 py-1">{joint.min}°</span>
+              <span className="rounded bg-card/30 px-2 py-1">{joint.max}°</span>
+            </div>
+          </div>
+        </div>
+      </Card>
+    ))}
+  </div>
+);

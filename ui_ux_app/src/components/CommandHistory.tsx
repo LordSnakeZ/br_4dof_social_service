@@ -1,82 +1,83 @@
-
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
 
 interface Command {
   id: number;
   timestamp: string;
   command: string;
-  status: 'completed' | 'failed' | 'emergency' | 'pending';
+  status: "completado" | "fallido" | "emergencia" | "pendiente";
 }
 
 interface Props {
   commands: Command[];
 }
 
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return <CheckCircle className="w-3 h-3 text-green-400" />;
-    case 'failed':
-      return <XCircle className="w-3 h-3 text-red-400" />;
-    case 'emergency':
-      return <AlertTriangle className="w-3 h-3 text-red-400" />;
-    default:
-      return <Clock className="w-3 h-3 text-yellow-400" />;
-  }
-};
+/* helpers */
+const iconFor = (s: Command["status"]) =>
+  ({
+    completado: <CheckCircle className="h-3 w-3 text-green-400" />,
+    fallido: <XCircle className="h-3 w-3 text-red-400" />,
+    emergencia: <AlertTriangle className="h-3 w-3 text-red-400" />,
+    pendiente: <Clock className="h-3 w-3 text-yellow-400" />,
+  }[s]);
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return 'default';
-    case 'failed':
-      return 'destructive';
-    case 'emergency':
-      return 'destructive';
-    default:
-      return 'secondary';
-  }
-};
+const badgeVariant = (s: Command["status"]) =>
+  s === "completado" ? "default" : s === "pendiente" ? "secondary" : "destructive";
 
 export const CommandHistory = ({ commands }: Props) => {
-  const sortedCommands = [...commands].reverse();
+  const history = [...commands].reverse(); // newest first
 
   return (
-    <Card className="bg-white/5 backdrop-blur-xl border-white/10">
+    <Card className="border border-border/20 bg-card/20 backdrop-blur-sm">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-green-400">
-          <Clock className="w-5 h-5" />
-          Command History
+          <Clock className="h-5 w-5" />
+          Historial de Comandos
         </CardTitle>
       </CardHeader>
+
       <CardContent>
         <ScrollArea className="h-72">
           <div className="space-y-3">
-            {sortedCommands.map((command) => (
+            {history.map((c) => (
               <div
-                key={command.id}
-                className="flex items-start gap-3 p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all duration-200"
+                key={c.id}
+                className="
+                  flex items-start gap-3 rounded-xl border border-border/10
+                  bg-card/100 p-4 transition-all hover:bg-card/40
+                "
               >
-                <div className="flex-shrink-0 mt-1">
-                  {getStatusIcon(command.status)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <p className="text-sm text-slate-200 truncate font-medium">
-                      {command.command}
+                <div className="mt-1 flex-shrink-0">{iconFor(c.status)}</div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-medium text-secondary-foreground">
+                      {c.command}
                     </p>
-                    <Badge 
-                      variant={getStatusColor(command.status) as any} 
-                      className="text-xs flex-shrink-0 font-semibold"
+                    <Badge
+                      variant={badgeVariant(c.status) as any}
+                      className="flex-shrink-0 text-xs font-semibold capitalize"
                     >
-                      {command.status}
+                      {c.status}
                     </Badge>
                   </div>
-                  <p className="text-xs text-slate-400 font-mono">{command.timestamp}</p>
+
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {c.timestamp}
+                  </p>
                 </div>
               </div>
             ))}

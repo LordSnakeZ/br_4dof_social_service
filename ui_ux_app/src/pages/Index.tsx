@@ -1,19 +1,25 @@
+import React, { useState } from "react";
 
-import React, { useState } from 'react';
-import { RobotArmVisualization } from '@/components/RobotArmVisualization';
-import { ControlPanel } from '@/components/ControlPanel';
-import { StatusDashboard } from '@/components/StatusDashboard';
-import { CommandHistory } from '@/components/CommandHistory';
-import { EmergencyControls } from '@/components/EmergencyControls';
-import { DynamixelDashboard } from '@/components/DynamixelDashboard';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RobotArmVisualization } from "@/components/RobotArmVisualization";
+import { ControlPanel } from "@/components/ControlPanel";
+import { StatusDashboard } from "@/components/StatusDashboard";
+import { CommandHistory } from "@/components/CommandHistory";
+import { EmergencyControls } from "@/components/EmergencyControls";
+import { DynamixelDashboard } from "@/components/DynamixelDashboard";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 const Index = () => {
+  /* ─────────────── STATE ─────────────── */
   const [armPosition, setArmPosition] = useState({
     base: 0,
-    shoulder: 45,
-    elbow: -30,
+    hombro: 45,
+    codo: -30,
     gripper: 0,
   });
 
@@ -22,187 +28,187 @@ const Index = () => {
     moving: false,
     temperature: 42,
     power: 85,
-    emergency: false
+    emergency: false,
   });
 
-  const [commands, setCommands] = useState<Array<{
-    id: number;
-    timestamp: string;
-    command: string;
-    status: 'completed' | 'failed' | 'emergency' | 'pending';
-  }>>([
-    { id: 1, timestamp: new Date().toLocaleTimeString(), command: 'Initialize arm', status: 'completed' },
-    { id: 2, timestamp: new Date().toLocaleTimeString(), command: 'Move to home position', status: 'completed' },
-  ]);
-
-  // Add DYNAMIXEL servo data
-  const [servos, setServos] = useState([
+  const [commands, setCommands] = useState<
+    Array<{
+      id: number;
+      timestamp: string;
+      command: string;
+      status: "completado" | "fallido" | "emergencia" | "pendiente";
+    }>
+  >([
     {
       id: 1,
-      name: 'Base',
-      presentPosition: armPosition.base,
-      goalPosition: armPosition.base,
-      moving: armStatus.moving,
-      presentSpeed: armStatus.moving ? 15 : 0,
-      presentLoad: 25,
-      torqueEnable: !armStatus.emergency,
-      torqueLimit: 100,
-      presentVoltage: 11.8,
-      presentTemperature: 42,
-      ledState: true
+      timestamp: new Date().toLocaleTimeString(),
+      command: "Brazo inicializado",
+      status: "completado",
     },
     {
       id: 2,
-      name: 'Shoulder',
-      presentPosition: armPosition.shoulder,
-      goalPosition: armPosition.shoulder,
-      moving: armStatus.moving,
-      presentSpeed: armStatus.moving ? -8 : 0,
+      timestamp: new Date().toLocaleTimeString(),
+      command: "Mover hacia posición inicial",
+      status: "completado",
+    },
+  ]);
+
+ /* --------------- ✔ AQUÍ restauramos el arreglo --------------- */
+  const [servos, setServos] = useState([
+    {
+      id: 1,
+      name: "AX-18A",
+      presentPosition: 0,
+      goalPosition: 0,
+      moving: false,
+      presentSpeed: 0,
+      presentLoad: 25,
+      torqueEnable: true,
+      torqueLimit: 100,
+      presentVoltage: 11.8,
+      presentTemperature: 42,
+      ledState: true,
+    },
+    {
+      id: 2,
+      name: "AX-12A",
+      presentPosition: 45,
+      goalPosition: 45,
+      moving: false,
+      presentSpeed: 0,
       presentLoad: 45,
-      torqueEnable: !armStatus.emergency,
+      torqueEnable: true,
       torqueLimit: 80,
       presentVoltage: 11.7,
       presentTemperature: 38,
-      ledState: true
+      ledState: true,
     },
     {
       id: 3,
-      name: 'Elbow',
-      presentPosition: armPosition.elbow,
-      goalPosition: armPosition.elbow,
-      moving: armStatus.moving,
-      presentSpeed: armStatus.moving ? 12 : 0,
+      name: "AX-12A",
+      presentPosition: -30,
+      goalPosition: -30,
+      moving: false,
+      presentSpeed: 0,
       presentLoad: 30,
-      torqueEnable: !armStatus.emergency,
+      torqueEnable: true,
       torqueLimit: 90,
       presentVoltage: 11.9,
       presentTemperature: 35,
-      ledState: true
+      ledState: true,
     },
     {
       id: 4,
-      name: 'Gripper',
-      presentPosition: armPosition.gripper,
-      goalPosition: armPosition.gripper,
-      moving: armStatus.moving,
-      presentSpeed: armStatus.moving ? 5 : 0,
+      name: "AX12-W",
+      presentPosition: 0,
+      goalPosition: 0,
+      moving: false,
+      presentSpeed: 0,
       presentLoad: 15,
-      torqueEnable: !armStatus.emergency,
+      torqueEnable: true,
       torqueLimit: 60,
       presentVoltage: 12.0,
       presentTemperature: 32,
-      ledState: true
-    }
+      ledState: true,
+    },
   ]);
 
+  /* ─────────────── HANDLERS ─────────────── */
   const handlePositionChange = (joint: string, value: number) => {
-    setArmPosition(prev => ({
-      ...prev,
-      [joint]: value
-    }));
-    
-    setArmStatus(prev => ({ ...prev, moving: true }));
-    
-    // Simulate command completion
+    setArmPosition((prev) => ({ ...prev, [joint]: value }));
+    setArmStatus((prev) => ({ ...prev, moving: true }));
+
     setTimeout(() => {
-      setArmStatus(prev => ({ ...prev, moving: false }));
-      setCommands(prev => [
+      setArmStatus((prev) => ({ ...prev, moving: false }));
+      setCommands((prev) => [
         ...prev,
         {
           id: prev.length + 1,
           timestamp: new Date().toLocaleTimeString(),
-          command: `Move ${joint} to ${value}°`,
-          status: 'completed' as const
-        }
+          command: `Mover ${joint} hacia ${value}°`,
+          status: "completado",
+        },
       ]);
     }, 1500);
   };
 
   const handleEmergencyStop = () => {
-    setArmStatus(prev => ({ ...prev, emergency: true, moving: false }));
-    setCommands(prev => [
+    setArmStatus((prev) => ({ ...prev, emergency: true, moving: false }));
+    setCommands((prev) => [
       ...prev,
       {
         id: prev.length + 1,
         timestamp: new Date().toLocaleTimeString(),
-        command: 'EMERGENCY STOP',
-        status: 'emergency' as const
-      }
+        command: "PARO DE EMERGENCIA",
+        status: "emergencia",
+      },
     ]);
   };
 
   const handleReset = () => {
-    setArmStatus(prev => ({ ...prev, emergency: false }));
-    setCommands(prev => [
+    setArmStatus((prev) => ({ ...prev, emergency: false }));
+    setCommands((prev) => [
       ...prev,
       {
         id: prev.length + 1,
         timestamp: new Date().toLocaleTimeString(),
-        command: 'System reset',
-        status: 'completed' as const
-      }
+        command: "Reinicio de Sistema",
+        status: "completado",
+      },
     ]);
   };
 
   const handleServoRefresh = async () => {
-    // Simulate fetching fresh data from DYNAMIXEL servos
-    console.log('Refreshing servo data...');
-    // In real implementation, this would fetch from your backend/hardware
+    console.log("Actualizando información de servos…");
   };
 
-  const handleServoTorqueEnable = (servoId: number, enabled: boolean) => {
-    setServos(prev => prev.map(servo => 
-      servo.id === servoId ? { ...servo, torqueEnable: enabled } : servo
-    ));
-    
-    setCommands(prev => [
-      ...prev,
-      {
-        id: prev.length + 1,
-        timestamp: new Date().toLocaleTimeString(),
-        command: `Servo ${servoId}: Torque ${enabled ? 'Enabled' : 'Disabled'}`,
-        status: 'completed' as const
-      }
-    ]);
-  };
+  const handleServoTorqueEnable = (id: number, enabled: boolean) =>
+    setServos((p) => p.map((s) => (s.id === id ? { ...s, torqueEnable: enabled } : s)));
 
-  const handleServoTorqueLimit = (servoId: number, limit: number) => {
-    setServos(prev => prev.map(servo => 
-      servo.id === servoId ? { ...servo, torqueLimit: limit } : servo
-    ));
-    
-    setCommands(prev => [
-      ...prev,
-      {
-        id: prev.length + 1,
-        timestamp: new Date().toLocaleTimeString(),
-        command: `Servo ${servoId}: Torque Limit ${limit}%`,
-        status: 'completed' as const
-      }
-    ]);
-  };
+  const handleServoTorqueLimit = (id: number, limit: number) =>
+    setServos((p) => p.map((s) => (s.id === id ? { ...s, torqueLimit: limit } : s)));
 
+  /* ─────────────── LAYOUT ─────────────── */
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 light:from-slate-50 light:via-slate-100 light:to-indigo-100 light:text-slate-900">
-      {/* Modern Header with Glass Effect */}
-      <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl sticky top-0 z-50">
+    <div
+      className="
+        min-h-screen text-foreground
+        bg-gradient-to-br from-[hsl(210_12%_94%)] to-[hsl(210_12%_90%)]
+        dark:bg-gradient-to-br dark:from-[hsl(220_5%_8%)]
+        dark:to-[hsl(220_5%_3%)]
+      "
+    >
+      {/* HEADER */}
+      <header className="sticky top-0 z-50 border-b border-border/40 bg-card/20 backdrop-blur-lg">
         <div className="container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                RoboArm Pro
+                Control Automatico
               </h1>
-              <p className="text-slate-400 text-sm mt-1 font-light">4-DOF Industrial Automation Control</p>
+              <p className="mt-1 text-sm font-light text-secondary-foreground">
+                Brazo Robotico Dynamixel de 4-GDL 
+              </p>
             </div>
+
             <div className="flex items-center gap-4">
               <ThemeToggle />
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full backdrop-blur-sm">
-                <div className={`w-2 h-2 rounded-full ${
-                  armStatus.emergency ? 'bg-red-400 animate-pulse' : 
-                  armStatus.moving ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'
-                }`} />
-                <span className="text-sm font-medium">
-                  {armStatus.emergency ? 'EMERGENCY' : armStatus.moving ? 'ACTIVE' : 'READY'}
+              <div className="flex items-center gap-2 rounded-full bg-card/30 px-4 py-2 backdrop-blur-sm">
+                <div
+                  className={`h-2 w-2 rounded-full ${
+                    armStatus.emergency
+                      ? "bg-red-400 animate-pulse"
+                      : armStatus.moving
+                      ? "bg-yellow-400 animate-pulse"
+                      : "bg-green-400"
+                  }`}
+                />
+                <span className="text-sm font-medium text-secondary-foreground">
+                  {armStatus.emergency
+                    ? "EMERGENCIA"
+                    : armStatus.moving
+                    ? "ACTIVO"
+                    : "LISTO"}
                 </span>
               </div>
             </div>
@@ -210,67 +216,58 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Main Layout with Tabs */}
+      {/* MAIN */}
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="control" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-2 bg-white/10 backdrop-blur-sm">
-            <TabsTrigger value="control" className="data-[state=active]:bg-white/20">
-              Arm Control
+          <TabsList className="grid w-full grid-cols-2 bg-card/40 backdrop-blur-sm">
+            <TabsTrigger value="control" className="text-secondary-foreground data-[state=active]:bg-card/100">
+              Controlador
             </TabsTrigger>
-            <TabsTrigger value="servos" className="data-[state=active]:bg-white/20">
-              DYNAMIXEL Monitor
+            <TabsTrigger value="servos" className="text-secondary-foreground data-[state=active]:bg-card/100">
+              Monitor DYNAMIXEL
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="control" className="space-y-0">
+          {/* CONTROL TAB */}
+          <TabsContent value="control">
             <div className="space-y-8">
-              {/* Top Row - 3D Visualization and Joint Control */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* 3D Visualization */}
-                <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-8 shadow-2xl">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                      3D Visualization
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                {/* 3D VISUALIZATION */}
+                <div className="rounded-2xl border border-border/40 bg-card/30 p-8 shadow-xl ring-1 ring-border/40 backdrop-blur-xl">
+                  <div className="mb-6 flex items-center justify-between">
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
+                      Visualización 3D
                     </h2>
-                    <div className="flex items-center gap-2 text-sm text-slate-400">
-                      <div className="w-1 h-1 bg-cyan-400 rounded-full animate-pulse" />
-                      Live Feed
+                    <div className="flex items-center gap-2 text-sm text-secondary-foreground">
+                      <div className="h-1 w-1 animate-pulse rounded-full bg-red-600" />
+                      En Vivo
                     </div>
                   </div>
-                  <div className="h-[28rem] rounded-xl overflow-hidden bg-gradient-to-b from-slate-900/50 to-slate-800/50 border border-white/5">
+                  <div className="h-[28rem] overflow-hidden rounded-xl border border-white/5 bg-gradient-to-b from-[hsl(220_5%_6%)/.5] to-[hsl(220_5%_4%)/.5]">
                     <RobotArmVisualization position={armPosition} status={armStatus} />
                   </div>
                 </div>
 
-                {/* Joint Control */}
-                <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-8 shadow-2xl">
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-6">
-                    Joint Control
+                {/* JOINT CONTROL */}
+                <div className="rounded-2xl border border-border/40 bg-card/30 p-8 shadow-xl ring-1 ring-border/40 backdrop-blur-xl">
+                  <h2 className="mb-6 text-2xl font-bold bg-gradient-to-r from-purple-500 to-yellow-900 bg-clip-text text-transparent">
+                    Control de Juntas
                   </h2>
-                  <ControlPanel 
-                    position={armPosition} 
-                    onPositionChange={handlePositionChange}
-                    disabled={armStatus.emergency}
-                  />
+                  <ControlPanel position={armPosition} onPositionChange={handlePositionChange} disabled={armStatus.emergency} />
                 </div>
               </div>
 
-              {/* Bottom Row - Emergency Controls, Status, and Command History */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <EmergencyControls 
-                  onEmergencyStop={handleEmergencyStop}
-                  onReset={handleReset}
-                  emergency={armStatus.emergency}
-                />
-
+              {/* BOTTOM ROW */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <StatusDashboard status={armStatus} />
-
                 <CommandHistory commands={commands} />
+                <EmergencyControls onEmergencyStop={handleEmergencyStop} onReset={handleReset} emergency={armStatus.emergency} />
               </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="servos" className="space-y-0">
+          {/* SERVOS TAB */}
+          <TabsContent value="servos">
             <DynamixelDashboard
               servos={servos}
               onRefresh={handleServoRefresh}

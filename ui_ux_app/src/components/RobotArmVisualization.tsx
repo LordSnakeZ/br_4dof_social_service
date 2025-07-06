@@ -1,14 +1,13 @@
-
-import React, { useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment } from '@react-three/drei';
-import * as THREE from 'three';
+import React, { useRef, useEffect, useState } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls, Environment } from "@react-three/drei";
+import * as THREE from "three";
 
 interface ArmPosition {
   base: number;
-  shoulder: number;
-  elbow: number;
-  gripper: number;
+  hombro: number;
+  codo: number;
+  gripper: number; // 0 = cerrado, 100 = abierto
 }
 
 interface ArmStatus {
@@ -26,95 +25,179 @@ const RobotArm = ({ position, status }: Props) => {
   const baseRef = useRef<THREE.Group>(null);
   const shoulderRef = useRef<THREE.Group>(null);
   const elbowRef = useRef<THREE.Group>(null);
-  const gripperRef = useRef<THREE.Group>(null);
+  const leftGripperRef = useRef<THREE.Mesh>(null);
+  const rightGripperRef = useRef<THREE.Mesh>(null);
 
+  /* Smooth joint animation */
   useFrame(() => {
+    const lerpFactor = 0.1;
+    
     if (baseRef.current) {
-      baseRef.current.rotation.y = THREE.MathUtils.degToRad(position.base);
+      const targetRotation = THREE.MathUtils.degToRad(position.base);
+      baseRef.current.rotation.y = THREE.MathUtils.lerp(
+        baseRef.current.rotation.y,
+        targetRotation,
+        lerpFactor
+      );
     }
+    
     if (shoulderRef.current) {
-      shoulderRef.current.rotation.z = THREE.MathUtils.degToRad(position.shoulder);
+      const targetRotation = THREE.MathUtils.degToRad(position.hombro);
+      shoulderRef.current.rotation.z = THREE.MathUtils.lerp(
+        shoulderRef.current.rotation.z,
+        targetRotation,
+        lerpFactor
+      );
     }
+    
     if (elbowRef.current) {
-      elbowRef.current.rotation.z = THREE.MathUtils.degToRad(position.elbow);
+      const targetRotation = THREE.MathUtils.degToRad(position.codo);
+      elbowRef.current.rotation.z = THREE.MathUtils.lerp(
+        elbowRef.current.rotation.z,
+        targetRotation,
+        lerpFactor
+      );
     }
-    if (gripperRef.current) {
-      gripperRef.current.rotation.z = THREE.MathUtils.degToRad(position.gripper);
+    
+    // Animación de apertura/cierre del gripper
+    if (leftGripperRef.current && rightGripperRef.current) {
+      const apertureAngle = THREE.MathUtils.degToRad(position.gripper * 0.45);
+      
+      leftGripperRef.current.rotation.z = THREE.MathUtils.lerp(
+        leftGripperRef.current.rotation.z,
+        apertureAngle,
+        lerpFactor
+      );
+      
+      rightGripperRef.current.rotation.z = THREE.MathUtils.lerp(
+        rightGripperRef.current.rotation.z,
+        -apertureAngle,
+        lerpFactor
+      );
     }
   });
 
-  const jointColor = status.emergency ? '#ef4444' : status.moving ? '#f59e0b' : '#06b6d4';
-  const emissiveIntensity = status.moving ? 0.4 : 0.2;
+  /* Joint appearance logic */
+  const jointColor = status.emergency
+    ? "#ef4444"
+    : status.moving
+    ? "#f59e0b"
+    : "#06b6d4";
+  
+  const emissiveIntensity = status.moving ? 0.8 : 0.3;
 
   return (
     <group ref={baseRef}>
       {/* Base */}
-      <mesh position={[0, 0, 0]}>
-        <cylinderGeometry args={[1.8, 1.8, 0.6, 20]} />
-        <meshStandardMaterial 
-          color={jointColor} 
-          emissive={jointColor} 
+      <mesh castShadow>
+        <cylinderGeometry args={[1.8, 1.8, 0.6, 32]} />
+        <meshStandardMaterial
+          color={jointColor}
+          emissive={jointColor}
           emissiveIntensity={emissiveIntensity}
-          metalness={0.9}
-          roughness={0.1}
+          metalness={0.95}
+          roughness={0.05}
         />
       </mesh>
 
+      {/* Shoulder */}
       <group ref={shoulderRef} position={[0, 0.6, 0]}>
-        {/* Shoulder Joint */}
-        <mesh>
-          <sphereGeometry args={[0.5, 20, 20]} />
-          <meshStandardMaterial 
-            color={jointColor} 
-            emissive={jointColor} 
+        <mesh castShadow>
+          <sphereGeometry args={[0.5, 32, 32]} />
+          <meshStandardMaterial
+            color={jointColor}
+            emissive={jointColor}
             emissiveIntensity={emissiveIntensity}
-            metalness={0.9}
-            roughness={0.1}
+            metalness={0.95}
+            roughness={0.05}
           />
         </mesh>
 
-        {/* Upper Arm */}
-        <mesh position={[0, 1.2, 0]}>
-          <cylinderGeometry args={[0.25, 0.25, 2.4, 12]} />
-          <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.2} />
+        {/* Upper arm */}
+        <mesh position={[0, 1.2, 0]} castShadow>
+          <cylinderGeometry args={[0.25, 0.25, 2.4, 16]} />
+          <meshStandardMaterial
+            color="#334155"
+            metalness={0.8}
+            roughness={0.15}
+          />
         </mesh>
 
+        {/* Elbow */}
         <group ref={elbowRef} position={[0, 2.4, 0]}>
-          {/* Elbow Joint */}
-          <mesh>
-            <sphereGeometry args={[0.4, 20, 20]} />
-            <meshStandardMaterial 
-              color={jointColor} 
-              emissive={jointColor} 
+          <mesh castShadow>
+            <sphereGeometry args={[0.4, 32, 32]} />
+            <meshStandardMaterial
+              color={jointColor}
+              emissive={jointColor}
               emissiveIntensity={emissiveIntensity}
-              metalness={0.9}
-              roughness={0.1}
+              metalness={0.95}
+              roughness={0.05}
             />
           </mesh>
 
           {/* Forearm */}
-          <mesh position={[0, 1, 0]}>
-            <cylinderGeometry args={[0.2, 0.2, 2, 12]} />
-            <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.2} />
+          <mesh position={[0, 1, 0]} castShadow>
+            <cylinderGeometry args={[0.2, 0.2, 2, 16]} />
+            <meshStandardMaterial
+              color="#334155"
+              metalness={0.8}
+              roughness={0.15}
+            />
           </mesh>
 
-          <group ref={gripperRef} position={[0, 2, 0]}>
-            {/* Gripper Joint */}
-            <mesh>
-              <sphereGeometry args={[0.3, 20, 20]} />
-              <meshStandardMaterial 
-                color={jointColor} 
-                emissive={jointColor} 
+          {/* Gripper Assembly */}
+          <group position={[0, 2, 0]}>
+            {/* Base joint del gripper */}
+            <mesh castShadow>
+              <sphereGeometry args={[0.3, 32, 32]} />
+              <meshStandardMaterial
+                color={jointColor}
+                emissive={jointColor}
                 emissiveIntensity={emissiveIntensity}
-                metalness={0.9}
-                roughness={0.1}
+                metalness={0.95}
+                roughness={0.05}
               />
             </mesh>
-
-            {/* Gripper End Effector */}
-            <mesh position={[0, 0.4, 0]}>
-              <boxGeometry args={[0.4, 0.3, 0.4]} />
-              <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.3} />
+            
+            {/* Mecanismo del gripper (más delgado) */}
+            <mesh position={[0, 0.3, 0]}>
+              <boxGeometry args={[0.3, 0.2, 0.3]} />
+              <meshStandardMaterial
+                color="#1e293b"
+                metalness={0.85}
+                roughness={0.2}
+              />
+            </mesh>
+            
+            {/* Pinza izquierda */}
+            <mesh 
+              ref={leftGripperRef} 
+              position={[0.15, 0.4, 0]} 
+              rotation={[0, 0, 0]}
+              castShadow
+            >
+              <boxGeometry args={[0.1, 0.25, 0.15]} />
+              <meshStandardMaterial
+                color="#1e293b"
+                metalness={0.85}
+                roughness={0.2}
+              />
+            </mesh>
+            
+            {/* Pinza derecha */}
+            <mesh 
+              ref={rightGripperRef} 
+              position={[-0.15, 0.4, 0]} 
+              rotation={[0, 0, 0]}
+              castShadow
+            >
+              <boxGeometry args={[0.1, 0.25, 0.15]} />
+              <meshStandardMaterial
+                color="#1e293b"
+                metalness={0.85}
+                roughness={0.2}
+              />
             </mesh>
           </group>
         </group>
@@ -123,31 +206,89 @@ const RobotArm = ({ position, status }: Props) => {
   );
 };
 
+const AdaptiveScene = ({ status }: { status: ArmStatus }) => {
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    setDarkMode(mediaQuery.matches);
+    
+    const handler = (e: MediaQueryListEvent) => setDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  // Colores adaptativos
+  const gridColor = status.moving ? "#f59e0b" : (darkMode ? "#4b5563" : "#9ca3af");
+  const centerColor = darkMode ? "#6b7280" : "#d1d5db";
+  const floorColor = darkMode ? "#1f2937" : "#e5e7eb";
+
+  return (
+    <>
+      {/* Grid Helper */}
+      <gridHelper
+        args={[24, 24, new THREE.Color(gridColor), new THREE.Color(centerColor)]}
+        position={[0, -0.5, 0]}
+      />
+      
+      {/* Floor */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
+        <planeGeometry args={[30, 30]} />
+        <meshStandardMaterial
+          color={floorColor}
+          metalness={0.1}
+          roughness={0.5}
+        />
+      </mesh>
+    </>
+  );
+};
+
 export const RobotArmVisualization = ({ position, status }: Props) => {
   return (
     <Canvas
       camera={{ position: [6, 6, 6], fov: 50 }}
-      className="bg-gradient-to-b from-slate-950 to-slate-900"
+      shadows
+      gl={{ antialias: true }}
+      className="
+        bg-gradient-to-br 
+        from-[hsl(210_20%_98%)] to-[hsl(210_20%_92%)]
+        dark:bg-gradient-to-br 
+        dark:from-[hsl(220_10%_8%)] dark:to-[hsl(220_10%_4%)]
+        transition-colors duration-300
+      "
     >
-      <ambientLight intensity={0.3} />
-      <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow />
-      <pointLight position={[-10, -10, -5]} intensity={0.4} color="#06b6d4" />
+      {/* Lighting */}
+      <ambientLight intensity={0.5} />
+      <directionalLight
+        position={[10, 15, 10]}
+        intensity={1.5}
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+      />
+      <pointLight position={[-10, -10, -5]} intensity={0.5} color="#06b6d4" />
       
+      {/* Model */}
       <RobotArm position={position} status={status} />
       
-      <OrbitControls 
-        enablePan={true} 
-        enableZoom={true} 
-        enableRotate={true}
+      {/* Adaptive Grid and Floor */}
+      <AdaptiveScene status={status} />
+      
+      {/* Controls */}
+      <OrbitControls
+        enablePan
+        enableZoom
+        enableRotate
         maxDistance={20}
         minDistance={4}
         maxPolarAngle={Math.PI / 2}
+        minPolarAngle={Math.PI / 6}
       />
-      
-      <Environment preset="city" />
-      
-      {/* Modern Grid */}
-      <gridHelper args={[24, 24, '#334155', '#1e293b']} />
+
+      {/* Environment */}
+      <Environment preset="studio" />
     </Canvas>
   );
 };
