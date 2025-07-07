@@ -2,7 +2,7 @@
 #include <Dynamixel2Arduino.h>
 
 // ——— Pines y puerto para Arduino Mega 2560 ———
-#define DXL_DIR_PIN   5           // OĒ/RĒ del buffer half-duplex
+#define DXL_DIR_PIN   2           // OĒ/RĒ del buffer half-duplex
 HardwareSerial& DXL_SERIAL = Serial1;  // Serial1: TX1=18 → DIN, RX1=19 ← DOUT
 
 // ——— Lista de baud rates a escanear ———
