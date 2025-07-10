@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { ServoMonitor } from "./ServoMonitor";
 import {
   Card,
   CardContent,
@@ -10,7 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 
-interface ServoData {
+import { ServoMonitor } from "@/components/ServoMonitor";
+
+/* ---------- Tipos ---------- */
+export interface ServoData {
   id: number;
   name: string;
   presentPosition: number;
@@ -27,47 +29,48 @@ interface ServoData {
 
 interface Props {
   servos: ServoData[];
-  onRefresh: () => void;
+  onRefresh: () => Promise<void>;                // ← debe devolver una promesa
   onEmergencyStop: () => void;
   onTorqueEnableChange: (id: number, enable: boolean) => void;
   onTorqueLimitChange: (id: number, limit: number) => void;
 }
 
-export const DynamixelDashboard = ({
+export const DynamixelDashboard: React.FC<Props> = ({
   servos,
   onRefresh,
   onEmergencyStop,
   onTorqueEnableChange,
   onTorqueLimitChange,
-}: Props) => {
+}) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  /* Llama a onRefresh y muestra un spinner 1 s */
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await onRefresh();
     setTimeout(() => setIsRefreshing(false), 1_000);
   };
 
+  /* ---------- Helpers ---------- */
   const getChainStatus = () => {
-    const moving = servos.filter((s) => s.moving).length;
-    const unhealthy = servos.filter(
-      (s) =>
-        s.presentTemperature > 70 ||
-        s.presentVoltage < 10 ||
-        s.presentLoad > 80
+    const moving     = servos.filter(s => s.moving).length;
+    const unhealthy  = servos.filter(s =>
+          s.presentTemperature > 70 ||
+          s.presentVoltage     < 10 ||
+          s.presentLoad        > 80
     ).length;
 
-    if (unhealthy)
-      return { color: "destructive", text: `${unhealthy} DAÑADO` };
-    if (moving) return { color: "secondary", text: `${moving} MOVIENDOSE` };
-    return { color: "default", text: "TODO LISTO" };
+    if (unhealthy) return { color: "destructive" as const, text: `${unhealthy} DAÑADO` };
+    if (moving)    return { color: "secondary"   as const, text: `${moving} MOVIENDOSE` };
+    return           { color: "default"      as const, text: "TODO LISTO" };
   };
 
   const chainStatus = getChainStatus();
 
+  /* ---------- Render ---------- */
   return (
     <div className="space-y-6">
-      {/* Chain overview */}
+      {/* ---------- RESUMEN DE CADENA ---------- */}
       <Card className="bg-card/20 border border-border/20 backdrop-blur-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -76,7 +79,7 @@ export const DynamixelDashboard = ({
             </CardTitle>
 
             <div className="flex items-center gap-4">
-              <Badge variant={chainStatus.color as any} className="text-sm">
+              <Badge variant={chainStatus.color} className="text-sm">
                 {chainStatus.text}
               </Badge>
 
@@ -89,9 +92,7 @@ export const DynamixelDashboard = ({
                   className="bg-card/40 hover:bg-card/60"
                 >
                   <RefreshCw
-                    className={`mr-2 h-4 w-4 ${
-                      isRefreshing ? "animate-spin" : ""
-                    }`}
+                    className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
                   />
                   Actualizar
                 </Button>
@@ -111,45 +112,34 @@ export const DynamixelDashboard = ({
 
         <CardContent>
           <div className="grid grid-cols-2 gap-4 text-center md:grid-cols-4">
-            {/* metric card */}
-            <div className="rounded-lg bg-card/100 p-3">
-              <div className="text-2xl font-bold text-foreground">
-                {servos.length}
-              </div>
-              <div className="text-xs text-muted-foreground">Total Servos</div>
-            </div>
+            {/* Total servos */}
+            <MetricCard value={servos.length} label="Total Servos" color="text-foreground" />
 
-            <div className="rounded-lg bg-card/100 p-3">
-              <div className="text-2xl font-bold text-green-500">
-                {servos.filter((s) => s.torqueEnable).length}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Torque Activado
-              </div>
-            </div>
+            {/* Torque ON */}
+            <MetricCard
+              value={servos.filter(s => s.torqueEnable).length}
+              label="Torque Activado"
+              color="text-green-500"
+            />
 
-            <div className="rounded-lg bg-card/100 p-3">
-              <div className="text-2xl font-bold text-yellow-400">
-                {servos.filter((s) => s.moving).length}
-              </div>
-              <div className="text-xs text-muted-foreground">Moviendose</div>
-            </div>
+            {/* Moviéndose */}
+            <MetricCard
+              value={servos.filter(s => s.moving).length}
+              label="Moviéndose"
+              color="text-yellow-400"
+            />
 
-            <div className="rounded-lg bg-card/100 p-3">
-              <div className="text-2xl font-bold text-blue-500">
-                {(
-                  servos.reduce((sum, s) => sum + s.presentVoltage, 0) /
-                  servos.length
-                ).toFixed(1)}
-                V
-              </div>
-              <div className="text-xs text-muted-foreground">Voltaje Promedio</div>
-            </div>
+            {/* Voltaje promedio */}
+            <MetricCard
+              value={`${(servos.reduce((sum, s) => sum + s.presentVoltage, 0) / servos.length).toFixed(1)} V`}
+              label="Voltaje Promedio"
+              color="text-blue-500"
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Individual servo monitors */}
+      {/* ---------- MONITOR INDIVIDUAL ---------- */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {servos.map((servo) => (
           <ServoMonitor
@@ -163,3 +153,11 @@ export const DynamixelDashboard = ({
     </div>
   );
 };
+
+/* ---------- Pequeño sub-componente métrico ---------- */
+const MetricCard: React.FC<{value: React.ReactNode; label: string; color: string}> = ({ value, label, color }) => (
+  <div className="rounded-lg bg-card/100 p-3">
+    <div className={`text-2xl font-bold ${color}`}>{value}</div>
+    <div className="text-xs text-muted-foreground">{label}</div>
+  </div>
+);

@@ -1,130 +1,80 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import { RobotArmVisualization } from "@/components/RobotArmVisualization";
 import { ControlPanel } from "@/components/ControlPanel";
 import { StatusDashboard } from "@/components/StatusDashboard";
 import { CommandHistory } from "@/components/CommandHistory";
 import { EmergencyControls } from "@/components/EmergencyControls";
-import { DynamixelDashboard } from "@/components/DynamixelDashboard";
+import { DynamixelDashboard, ServoData } from "@/components/DynamixelDashboard";
 import { ThemeToggle } from "@/components/ThemeToggle";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Sparkle } from "lucide-react";
 
-import { api } from "@/lib/api";
+import { api, InspectData } from "@/lib/api";
 import { jointToServo } from "@/lib/utils";
 
-/* ---------- Tipos ---------- */
+/* ─────── Tipos ─────── */
 type CommandStatus = "completado" | "fallido" | "emergencia" | "pendiente";
-interface Command {
-  id: number;
-  timestamp: string;
-  command: string;
-  status: CommandStatus;
-}
-interface ServoData {
-  id: number; name: string; presentPosition: number; goalPosition: number;
-  moving: boolean; presentSpeed: number; presentLoad: number;
-  torqueEnable: boolean; torqueLimit: number; presentVoltage: number;
-  presentTemperature: number; ledState: boolean;
-}
-interface ArmPosition { base: number; hombro: number; codo: number; gripper: number; }
+interface Command   { id:number; timestamp:string; command:string; status:CommandStatus; }
+interface ArmPosition { base:number; hombro:number; codo:number; gripper:number; }
 
-/* ---------- Postura preset ---------- */
+/* ─────── Constantes ─────── */
 const PRESET_POS: ArmPosition = { base: 80, hombro: 64, codo: 64, gripper: 120 };
+const SERVO_IDS  = [1, 2, 3, 4];
+
+/* Mapa ID → Nombre visible */
+const NAME_MAP: Record<number,string> = {
+  1: "AX-18A",
+  2: "AX-12A",
+  3: "AX-12A",
+  4: "AX-12W",
+};
 
 const Index: React.FC = () => {
-  /* Estado principal */
+  /* ── Estado global ── */
   const [armPosition, setArmPosition] = useState<ArmPosition>(PRESET_POS);
-  const [armStatus, setArmStatus] = useState({
-    connected: true,
-    moving: false,
-    temperature: 0,
-    power: 0,
-    emergency: false,
-  });
-  const [commands, setCommands] = useState<Command[]>([]);
- /* datos de servos (placeholder) */
-  const [servos, setServos] = useState<ServoData[]>([
-    {
-      id: 1,
-      name: "AX-18A",
-      presentPosition: 150,
-      goalPosition: 150,
+  const [armStatus,   setArmStatus]   = useState({ connected:true, moving:false, temperature:0, power:0, emergency:false });
+  const [commands,    setCommands]    = useState<Command[]>([]);
+  const [servos, setServos] = useState<ServoData[]>(() =>
+    SERVO_IDS.map(id => ({
+      id,
+      name: NAME_MAP[id] ?? `Servo ${id}`,
+      presentPosition: 0,
+      goalPosition: 0,
       moving: false,
       presentSpeed: 0,
-      presentLoad: 25,
+      presentLoad: 0,
       torqueEnable: true,
       torqueLimit: 100,
-      presentVoltage: 11.8,
-      presentTemperature: 42,
+      presentVoltage: 0,
+      presentTemperature: 0,
       ledState: true,
-    },
-    {
-      id: 2,
-      name: "AX-12A",
-      presentPosition: 150,
-      goalPosition: 150,
-      moving: false,
-      presentSpeed: 0,
-      presentLoad: 45,
-      torqueEnable: true,
-      torqueLimit: 80,
-      presentVoltage: 11.7,
-      presentTemperature: 38,
-      ledState: true,
-    },
-    {
-      id: 3,
-      name: "AX-12A",
-      presentPosition: 150,
-      goalPosition: 150,
-      moving: false,
-      presentSpeed: 0,
-      presentLoad: 30,
-      torqueEnable: true,
-      torqueLimit: 90,
-      presentVoltage: 11.9,
-      presentTemperature: 35,
-      ledState: true,
-    },
-    {
-      id: 4,
-      name: "AX12-W",
-      presentPosition: 150,
-      goalPosition: 150,
-      moving: false,
-      presentSpeed: 0,
-      presentLoad: 15,
-      torqueEnable: true,
-      torqueLimit: 60,
-      presentVoltage: 12.0,
-      presentTemperature: 32,
-      ledState: true,
-    },
-  ]);
-  /* Historial */
-  const log = (txt: string, st: CommandStatus) =>
+    }))
+  );
+
+  const log = (text:string, st:CommandStatus) =>
     setCommands(p => [
       ...p,
-      { id: p.length + 1, timestamp: new Date().toLocaleTimeString(), command: txt, status: st },
+      { id:p.length+1, timestamp:new Date().toLocaleTimeString(), command:text, status:st },
     ]);
 
-  /* Handlers */
-  const handlePositionChange = (joint: keyof ArmPosition, value: number) => {
-    setArmPosition(p => ({ ...p, [joint]: value }));
+  /* ── Handlers de Juntas ── */
+  const handlePositionChange = (joint:keyof ArmPosition, val:number) => {
+    setArmPosition(p => ({ ...p, [joint]: val }));
     setArmStatus(s => ({ ...s, moving: true }));
 
-    api.move(jointToServo[joint], value)
+    api.move(jointToServo[joint], val)
        .then(() => setArmStatus(s => ({ ...s, moving: false })))
        .catch(console.error);
 
-    log(`Mover ${joint} a ${value}°`, "completado");
+    log(`Mover ${joint} a ${val}°`, "completado");
   };
 
   const handleEmergencyStop = () => {
     api.stop().catch(console.error);
-    setArmStatus(s => ({ ...s, emergency: true, moving: false }));
+    setArmStatus(s => ({ ...s, emergency: true, moving:false }));
     log("PARO DE EMERGENCIA", "emergencia");
   };
 
@@ -135,16 +85,64 @@ const Index: React.FC = () => {
   };
 
   const handlePreset = () => {
-    api.reset().catch(console.error);   // mueve el hardware
-    setArmPosition(PRESET_POS);         // sincroniza sliders + 3-D
+    api.reset().catch(console.error);
+    setArmPosition(PRESET_POS);
     log("Preset 80-64-64-120", "completado");
   };
 
-  /* Layout */
+  /* ── Polling de servos ── */
+  const refreshServos = async () => {
+    try {
+      const data: InspectData[] = await api.inspectAll(SERVO_IDS);
+      setServos(prev => prev.map(s => {
+        const d = data.find(x => x.servo_id === s.id);
+        if (!d) return s;
+        return {
+          ...s,
+          presentPosition: d.position_deg,
+          moving: Math.abs(d.position_deg - s.goalPosition) > 2,
+          presentSpeed: d.speed_rpm ?? 0,
+          presentLoad: d.load ? parseFloat(d.load) : 0,
+          torqueEnable: d.torque_enabled ?? s.torqueEnable,
+          presentVoltage: d.voltage_v ?? 0,
+          presentTemperature: d.temperature_c ?? 0,
+        };
+      }));
+    } catch (err) { console.error("inspectAll", err); }
+  };
+
+  useEffect(() => {
+    refreshServos();
+    const id = setInterval(refreshServos, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  /* ── Handlers torque / límite ── */
+const handleTorqueEnableChange = (id: number, enable: boolean) => {
+  /* 1. Optimista: actualiza UI al instante */
+  setServos(p => p.map(s => (s.id === id ? { ...s, torqueEnable: enable } : s)));
+  log(`Servo ${id}: torque ${enable ? "ON" : "OFF"}`, "pendiente");
+
+  /* 2. Envía al backend */
+  api.torque(id, enable)
+     .then(() => log(`Servo ${id}: torque ${enable ? "ON" : "OFF"}`, "completado"))
+     .catch(err => {
+       console.error(err);
+       /* revierte si falló */
+       setServos(p => p.map(s => (s.id === id ? { ...s, torqueEnable: !enable } : s)));
+       log(`Servo ${id}: torque fallido`, "fallido");
+     });
+};
+
+  const handleTorqueLimitChange  = (id:number, lim:number) =>
+    setServos(p => p.map(s => s.id===id ? { ...s, torqueLimit:lim } : s));
+
+  /* ── UI ── */
   return (
     <div className="min-h-screen text-foreground bg-gradient-to-br from-[hsl(210_12%_94%)] to-[hsl(210_12%_90%)]
                     dark:from-[hsl(220_5%_8%)] dark:to-[hsl(220_5%_3%)]">
-      {/* ---------- HEADER completo ---------- */}
+
+      {/* ───── HEADER ───── */}
       <header className="sticky top-0 z-50 border-b border-border/40 bg-card/20 backdrop-blur-lg">
         <div className="container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
@@ -160,15 +158,11 @@ const Index: React.FC = () => {
             <div className="flex items-center gap-4">
               <ThemeToggle />
               <div className="flex items-center gap-2 rounded-full bg-card/30 px-4 py-2 backdrop-blur-sm">
-                <div
-                  className={`h-2 w-2 rounded-full ${
-                    armStatus.emergency
-                      ? "bg-red-400 animate-pulse"
-                      : armStatus.moving
-                      ? "bg-yellow-400 animate-pulse"
-                      : "bg-green-400"
-                  }`}
-                />
+                <div className={`h-2 w-2 rounded-full ${
+                  armStatus.emergency ? "bg-red-400 animate-pulse"
+                  : armStatus.moving ? "bg-yellow-400 animate-pulse"
+                  : "bg-green-400"
+                }`} />
                 <span className="text-sm font-medium text-secondary-foreground">
                   {armStatus.emergency ? "EMERGENCIA" : armStatus.moving ? "ACTIVO" : "LISTO"}
                 </span>
@@ -178,7 +172,7 @@ const Index: React.FC = () => {
         </div>
       </header>
 
-      {/* ---------- MAIN ---------- */}
+      {/* ───── MAIN ───── */}
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="control" className="space-y-8">
           <TabsList className="grid w-full grid-cols-2 bg-card/40 backdrop-blur-sm">
@@ -186,10 +180,12 @@ const Index: React.FC = () => {
             <TabsTrigger value="servos">Monitor DYNAMIXEL</TabsTrigger>
           </TabsList>
 
-          {/* ---------- CONTROL TAB ---------- */}
+          {/* ─── CONTROL TAB ─── */}
           <TabsContent value="control">
             <div className="space-y-8">
+              {/* fila superior */}
               <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+
                 {/* Visualización 3-D */}
                 <div className="rounded-2xl border border-border/40 bg-card/30 p-8 shadow-xl ring-1 ring-border/40 backdrop-blur-xl">
                   <div className="mb-6 flex items-center justify-between">
@@ -201,13 +197,14 @@ const Index: React.FC = () => {
                       En vivo
                     </div>
                   </div>
-                  <div className="h-[28rem] rounded-xl border border-white/5 overflow-hidden bg-gradient-to-b
-                                  from-[hsl(220_5%_6%)/.5] to-[hsl(220_5%_4%)/.5]">
+
+                  <div className="h-[28rem] overflow-hidden rounded-xl border border-white/5
+                                  bg-gradient-to-b from-[hsl(220_5%_6%)/.5] to-[hsl(220_5%_4%)/.5]">
                     <RobotArmVisualization position={armPosition} status={armStatus} />
                   </div>
                 </div>
 
-                {/* Control de juntas + botones */}
+                {/* Panel de juntas */}
                 <div className="rounded-2xl border border-border/40 bg-card/30 p-8 shadow-xl ring-1 ring-border/40 backdrop-blur-xl">
                   <h2 className="mb-6 text-2xl font-bold bg-gradient-to-r from-purple-500 to-yellow-900 bg-clip-text text-transparent">
                     Control de Juntas
@@ -219,7 +216,7 @@ const Index: React.FC = () => {
                     disabled={armStatus.emergency}
                   />
 
-                  <div className="mt-6 flex flex-wrap gap-4">
+                                 <div className="mt-6 flex flex-wrap gap-4">
                     {/* Preset verde */}
                   <Button
                     onClick={handlePreset}
@@ -253,14 +250,14 @@ const Index: React.FC = () => {
             </div>
           </TabsContent>
 
-          {/* ---------- SERVOS TAB ---------- */}
+          {/* ─── SERVOS TAB ─── */}
           <TabsContent value="servos">
             <DynamixelDashboard
               servos={servos}
-              onRefresh={() => {}}
+              onRefresh={refreshServos}
               onEmergencyStop={handleEmergencyStop}
-              onTorqueEnableChange={() => {}}
-              onTorqueLimitChange={() => {}}
+              onTorqueEnableChange={handleTorqueEnableChange}
+              onTorqueLimitChange={handleTorqueLimitChange}
             />
           </TabsContent>
         </Tabs>
